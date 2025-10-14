@@ -62,6 +62,7 @@ st.markdown("""
         cursor: pointer;
         transition: all 0.3s ease;
         border: 2px solid transparent;
+        text-align: center;
     }
     
     .scenario-point:hover {
@@ -73,6 +74,7 @@ st.markdown("""
     .scenario-point.active {
         background: rgba(255,255,255,0.4);
         border-color: #00ff00;
+        box-shadow: 0 0 15px rgba(0,255,0,0.5);
     }
     
     .mobile-phone {
@@ -137,6 +139,14 @@ st.markdown("""
         font-weight: bold;
         cursor: pointer;
     }
+    
+    .demo-step {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 8px;
+        margin: 5px 0;
+        border-left: 3px solid #4ECDC4;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -153,38 +163,46 @@ class MobileASLApp:
         self.active_scenario = None
         self.phone_gesture_position = {"A": [60, 150], "B": [150, 150], "C": [120, 250]}
         
-        # Demo scenarios
+        # Demo scenarios with detailed steps
         self.scenarios = {
             "asl_typing": {
                 "title": "👋 ASL Gesture Typing",
-                "description": "Type using hand gestures on mobile",
+                "description": "Type using hand gestures captured by mobile camera",
                 "steps": [
-                    "Show 'A' gesture to camera",
-                    "Show 'B' gesture to camera", 
-                    "Show 'C' gesture to camera",
-                    "Add space between words",
-                    "Send message"
-                ]
+                    "📱 Hold phone in front of you",
+                    "👋 Show 'A' gesture to camera",
+                    "✋ Show 'B' gesture to camera", 
+                    "🤟 Show 'C' gesture to camera",
+                    "␣ Make space gesture between words",
+                    "📤 Send message with enter gesture"
+                ],
+                "current_step": 0
             },
             "mouse_control": {
                 "title": "🖱️ Mouse Control",
-                "description": "Control cursor with finger gestures",
+                "description": "Control cursor and clicks with finger gestures on mobile",
                 "steps": [
-                    "Move hand to control cursor",
-                    "Tap index finger to click",
-                    "Two-finger scroll",
-                    "Right-click with three fingers"
-                ]
+                    "📱 Position hand in front of camera",
+                    "🖐️ Move hand to control cursor position",
+                    "👇 Tap index finger for left click",
+                    "✌️ Two-finger tap for right click",
+                    "🔄 Two-finger scroll up/down",
+                    "📱 Switch apps with swipe gestures"
+                ],
+                "current_step": 0
             },
             "voice_commands": {
                 "title": "🎤 Voice Control",
-                "description": "Hands-free voice commands",
+                "description": "Hands-free voice commands for mobile accessibility",
                 "steps": [
-                    "Tap microphone button",
-                    "Speak your command",
-                    "Wait for processing",
-                    "See instant response"
-                ]
+                    "📱 Tap microphone button or say 'Hey Assistant'",
+                    "🎤 Speak your command clearly",
+                    "⏳ Wait for voice processing",
+                    "✅ See instant response on screen",
+                    "📱 Control apps with voice only",
+                    "🔊 Get audio feedback for all actions"
+                ],
+                "current_step": 0
             }
         }
 
@@ -206,31 +224,35 @@ class MobileASLApp:
             # Show gesture animation positions
             for gesture, pos in self.phone_gesture_position.items():
                 x, y = pos
-                draw.ellipse([x-20, y-20, x+20, y+20], fill='rgba(255,255,255,0.8)')
-                draw.text((x, y), gesture, fill='#2c3e50', anchor='mm', font_size=20)
+                draw.ellipse([x-25, y-25, x+25, y+25], fill='rgba(255,255,255,0.9)', outline='#00ff00', width=2)
+                draw.text((x, y), gesture, fill='#2c3e50', anchor='mm')
+                draw.text((x, y+30), f"ASL {gesture}", fill='white', anchor='mm', font_size=10)
             
-            draw.text((105, 80), "👋 Gesture Typing", fill='white', anchor='mm')
-            draw.text((105, 400), "Make ASL gestures", fill='white', anchor='mm')
+            draw.text((105, 80), "👋 Gesture Typing", fill='white', anchor='mm', font_size=16)
+            draw.text((105, 400), "Make ASL gestures to type", fill='white', anchor='mm', font_size=12)
             
         elif scenario == "mouse_control":
             # Show cursor control
             cursor_x, cursor_y = self.mouse_position
-            draw.rectangle([cursor_x-5, cursor_y-5, cursor_x+5, cursor_y+5], fill='#00ff00')
-            draw.text((105, 80), "🖱️ Mouse Control", fill='white', anchor='mm')
-            draw.text((105, 400), "Move hand to navigate", fill='white', anchor='mm')
+            draw.rectangle([cursor_x-8, cursor_y-8, cursor_x+8, cursor_y+8], fill='#00ff00')
+            draw.text((cursor_x, cursor_y-15), "🖱️", fill='white', anchor='mm', font_size=12)
+            draw.text((105, 80), "🖱️ Mouse Control", fill='white', anchor='mm', font_size=16)
+            draw.text((105, 400), "Move hand to navigate", fill='white', anchor='mm', font_size=12)
             
         elif scenario == "voice_commands":
             # Show voice interface
-            draw.ellipse([80, 150, 130, 200], fill='#fd79a8')
+            draw.ellipse([80, 150, 130, 200], fill='#fd79a8', outline='white', width=2)
             draw.text((105, 175), "🎤", fill='white', anchor='mm', font_size=20)
-            draw.text((105, 80), "🎤 Voice Control", fill='white', anchor='mm')
-            draw.text((105, 400), "Speak your command", fill='white', anchor='mm')
+            draw.text((105, 220), "Voice Active", fill='white', anchor='mm', font_size=12)
+            draw.text((105, 80), "🎤 Voice Control", fill='white', anchor='mm', font_size=16)
+            draw.text((105, 400), "Speak your command", fill='white', anchor='mm', font_size=12)
             
         else:
             # Default home screen
             draw.text((105, 150), "📱 ASL Mobile", fill='white', anchor='mm', font_size=24)
-            draw.text((105, 200), "Tap scenario to start", fill='white', anchor='mm')
-            draw.text((105, 400), "Accessibility First", fill='white', anchor='mm')
+            draw.text((105, 200), "Tap scenario to start", fill='white', anchor='mm', font_size=14)
+            draw.text((105, 250), "👋🖱️🎤", fill='white', anchor='mm', font_size=20)
+            draw.text((105, 400), "Accessibility First", fill='white', anchor='mm', font_size=12)
         
         # Paste screen onto phone
         phone_bg.paste(screen_bg, (20, 20))
@@ -239,7 +261,8 @@ class MobileASLApp:
     def start_scenario(self, scenario_name):
         """Start a demo scenario"""
         self.active_scenario = scenario_name
-        self.feedback_message = f"🎬 Starting {self.scenarios[scenario_name]['title']} demo!"
+        self.scenarios[scenario_name]['current_step'] = 0
+        self.feedback_message = f"🚀 Starting {self.scenarios[scenario_name]['title']} demo on mobile!"
         
         if scenario_name == "asl_typing":
             self.typed_text = ""
@@ -250,6 +273,17 @@ class MobileASLApp:
         elif scenario_name == "voice_commands":
             self.voice_command_active = True
 
+    def next_step(self, scenario_name):
+        """Move to next step in scenario"""
+        if scenario_name in self.scenarios:
+            current_scenario = self.scenarios[scenario_name]
+            current_step = current_scenario['current_step']
+            if current_step < len(current_scenario['steps']) - 1:
+                current_scenario['current_step'] += 1
+                self.feedback_message = f"📱 Step {current_scenario['current_step'] + 1}: {current_scenario['steps'][current_scenario['current_step']]}"
+            else:
+                self.feedback_message = f"✅ {current_scenario['title']} demo completed!"
+
     def process_gesture(self, gesture):
         """Process detected gesture with scenario-aware feedback"""
         current_time = time.time()
@@ -259,10 +293,14 @@ class MobileASLApp:
                       'W', 'X', 'Y', 'Z']:
             self.typed_text += gesture
             self.feedback_message = f"✅ Mobile camera detected ASL '{gesture}' gesture!"
+            if self.active_scenario == "asl_typing":
+                self.next_step("asl_typing")
             
         elif gesture == 'SPACE':
             self.typed_text += ' '
             self.feedback_message = "␣ Space gesture recognized on mobile"
+            if self.active_scenario == "asl_typing":
+                self.next_step("asl_typing")
             
         elif gesture == 'DELETE':
             self.typed_text = self.typed_text[:-1] if self.typed_text else ""
@@ -270,6 +308,8 @@ class MobileASLApp:
             
         elif gesture == 'ENTER':
             self.send_message()
+            if self.active_scenario == "asl_typing":
+                self.next_step("asl_typing")
             
         elif gesture == 'MOUSE':
             self.current_mode = 'mouse' if self.current_mode == 'typing' else 'typing'
@@ -286,10 +326,14 @@ class MobileASLApp:
         if action == "move_left":
             self.mouse_position[0] = max(20, self.mouse_position[0] - 20)
             self.feedback_message = "🖐️ Hand gesture moved mobile cursor LEFT"
+            if self.active_scenario == "mouse_control":
+                self.next_step("mouse_control")
             
         elif action == "move_right":
             self.mouse_position[0] = min(180, self.mouse_position[0] + 20)
             self.feedback_message = "🖐️ Hand gesture moved mobile cursor RIGHT"
+            if self.active_scenario == "mouse_control":
+                self.next_step("mouse_control")
             
         elif action == "move_up":
             self.mouse_position[1] = max(40, self.mouse_position[1] - 20)
@@ -301,9 +345,13 @@ class MobileASLApp:
             
         elif action == "click":
             self.feedback_message = "👇 Finger tap detected - MOBILE CLICK performed!"
+            if self.active_scenario == "mouse_control":
+                self.next_step("mouse_control")
             
         elif action == "scroll":
             self.feedback_message = "🔄 Two-finger scroll on mobile screen"
+            if self.active_scenario == "mouse_control":
+                self.next_step("mouse_control")
 
     def activate_voice_command(self):
         """Activate voice command on mobile"""
@@ -319,6 +367,8 @@ class MobileASLApp:
         selected_command = random.choice(voice_commands)
         self.typed_text = selected_command
         self.feedback_message = f"🎤 Mobile voice command: '{selected_command}'"
+        if self.active_scenario == "voice_commands":
+            self.next_step("voice_commands")
 
     def send_message(self):
         """Send message from mobile"""
@@ -349,6 +399,8 @@ class MobileASLApp:
             "google": "🌐 Opening Google on your mobile...",
             "youtube": "📺 Launching YouTube mobile app...",
             "camera": "📷 Mobile camera activated for gesture recognition!",
+            "call": "📞 Calling your contact via voice command...",
+            "location": "📍 Getting your current location...",
             "default": "📱 Mobile command received! ASL gestures working perfectly."
         }
         
@@ -368,195 +420,193 @@ def main():
     
     app = st.session_state.mobile_app
     
-    # Left Side Demo Scenario Panel
-    st.markdown(f'''
-    <div class="demo-scenario">
-        <h3>🎯 Demo Scenarios</h3>
-        <p>Click to start mobile demo:</p>
+    # Main layout with columns
+    left_col, main_col = st.columns([1, 2])
+    
+    with left_col:
+        # Demo Scenario Panel
+        st.markdown('<div class="demo-scenario">', unsafe_allow_html=True)
+        st.markdown("### 🎯 Demo Scenarios")
+        st.markdown("Click buttons below to start:")
         
-        <div class="scenario-point {'active' if app.active_scenario == 'asl_typing' else ''}" 
-             onclick="alert('Starting ASL Gesture Demo on Mobile')">
-            <strong>👋 ASL Gesture Typing</strong>
-            <br><small>Type with hand gestures on phone</small>
-        </div>
-        
-        <div class="scenario-point {'active' if app.active_scenario == 'mouse_control' else ''}" 
-             onclick="alert('Starting Mouse Control Demo on Mobile')">
-            <strong>🖱️ Mouse Control</strong>
-            <br><small>Navigate with finger gestures</small>
-        </div>
-        
-        <div class="scenario-point {'active' if app.active_scenario == 'voice_commands' else ''}" 
-             onclick="alert('Starting Voice Control Demo on Mobile')">
-            <strong>🎤 Voice Commands</strong>
-            <br><small>Hands-free mobile control</small>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    # Mobile container
-    st.markdown('<div class="mobile-container">', unsafe_allow_html=True)
-    
-    # Mobile Phone Display
-    st.subheader("📱 Mobile Phone Demo")
-    
-    # Create and display mobile phone
-    phone_display = app.create_mobile_phone_display(app.active_scenario)
-    st.image(phone_display, use_column_width=False, caption="ASL Mobile Phone Interface")
-    
-    # Scenario Control Buttons
-    st.subheader("🎬 Control Demo Scenarios")
-    
-    scenario_cols = st.columns(3)
-    with scenario_cols[0]:
-        if st.button("👋 Start ASL Typing", use_container_width=True):
+        # Scenario buttons with proper Streamlit integration
+        if st.button("👋 **ASL Gesture Typing**\n\nType with hand gestures on phone", 
+                    use_container_width=True, key="scenario_asl"):
             app.start_scenario("asl_typing")
-    with scenario_cols[1]:
-        if st.button("🖱️ Start Mouse Control", use_container_width=True):
+            st.toast("🚀 Starting ASL Gesture Typing Demo on Mobile!", icon="👋")
+        
+        if st.button("🖱️ **Mouse Control**\n\nNavigate with finger gestures", 
+                    use_container_width=True, key="scenario_mouse"):
             app.start_scenario("mouse_control")
-    with scenario_cols[2]:
-        if st.button("🎤 Start Voice Control", use_container_width=True):
+            st.toast("🚀 Starting Mouse Control Demo on Mobile!", icon="🖱️")
+        
+        if st.button("🎤 **Voice Commands**\n\nHands-free mobile control", 
+                    use_container_width=True, key="scenario_voice"):
             app.start_scenario("voice_commands")
+            st.toast("🚀 Starting Voice Control Demo on Mobile!", icon="🎤")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    # Active Scenario Display
-    if app.active_scenario:
-        scenario = app.scenarios[app.active_scenario]
-        st.markdown(f'''
-        <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); 
-                    border-radius: 10px; padding: 15px; margin: 10px 0;">
-            <h4>🎯 Active: {scenario['title']}</h4>
-            <p><strong>Description:</strong> {scenario['description']}</p>
-            <p><strong>Steps:</strong></p>
-            <ul>
-                {"".join([f"<li>{step}</li>" for step in scenario['steps']])}
-            </ul>
-        </div>
-        ''', unsafe_allow_html=True)
-    
-    # Real-time Feedback
-    if app.feedback_message:
-        st.markdown(f'<div class="feedback-message">📱 {app.feedback_message}</div>', 
-                   unsafe_allow_html=True)
-    
-    # Demo Interaction Area
-    st.subheader("🔄 Demo Interactions")
-    
-    if app.active_scenario == "asl_typing":
-        st.markdown("**👋 ASL Gesture Typing Demo**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("A Gesture", use_container_width=True):
-                app.process_gesture('A')
-        with col2:
-            if st.button("B Gesture", use_container_width=True):
-                app.process_gesture('B')
-        with col3:
-            if st.button("C Gesture", use_container_width=True):
-                app.process_gesture('C')
-                
-    elif app.active_scenario == "mouse_control":
-        st.markdown("**🖱️ Mouse Control Demo**")
-        mouse_cols = st.columns(4)
-        with mouse_cols[0]:
-            if st.button("⬅️ Left", use_container_width=True):
-                app.control_mouse("move_left")
-        with mouse_cols[1]:
-            if st.button("➡️ Right", use_container_width=True):
-                app.control_mouse("move_right")
-        with mouse_cols[2]:
-            if st.button("🖱️ Click", use_container_width=True):
-                app.control_mouse("click")
-        with mouse_cols[3]:
-            if st.button("🔄 Scroll", use_container_width=True):
-                app.control_mouse("scroll")
-                
-    elif app.active_scenario == "voice_commands":
-        st.markdown("**🎤 Voice Control Demo**")
-        voice_cols = st.columns(2)
-        with voice_cols[0]:
-            if st.button("🎤 Activate Voice", use_container_width=True):
-                app.activate_voice_command()
-        with voice_cols[1]:
-            if st.button("🗣️ Random Command", use_container_width=True):
-                app.process_gesture('VOICE')
-    
-    # Message Composition
-    st.subheader("💬 Mobile Message")
-    st.text_area("Typing Area:", value=app.typed_text, height=80, key="mobile_message")
-    
-    # Virtual Keyboard for Mobile
-    st.subheader("⌨️ Mobile Keyboard")
-    mobile_keys = [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-        ['SPACE', 'DEL', 'ENTER', 'VOICE']
-    ]
-    
-    for row in mobile_keys:
-        cols = st.columns(len(row))
-        for i, key in enumerate(row):
-            with cols[i]:
-                if st.button(key, use_container_width=True):
-                    if key == 'DEL':
-                        app.process_gesture('DELETE')
-                    elif key == 'SPACE':
-                        app.process_gesture('SPACE')
-                    elif key == 'ENTER':
-                        app.send_message()
-                    elif key == 'VOICE':
-                        app.process_gesture('VOICE')
-                    else:
-                        app.process_gesture(key)
-    
-    # Action Buttons
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📤 Send from Mobile", use_container_width=True):
-            app.send_message()
-    with col2:
-        if st.button("🔄 Switch Mobile Mode", use_container_width=True):
-            app.process_gesture('MOUSE')
-    
-    # Quick Mobile Actions
-    st.subheader("⚡ Mobile Quick Actions")
-    quick_cols = st.columns(4)
-    actions = [
-        ("🌐 Mobile Google", "google"),
-        ("📱 Open Camera", "camera"), 
-        ("📞 Call Contact", "call"),
-        ("📍 Get Location", "location")
-    ]
-    
-    for i, (label, command) in enumerate(actions):
-        with quick_cols[i]:
-            if st.button(label, use_container_width=True):
-                app.typed_text = command
-                app.send_message()
-    
-    # Conversation History
-    st.subheader("💬 Mobile Conversation")
-    if app.chat_history:
-        for msg in app.chat_history[-4:]:
-            if msg['type'] == 'user':
-                st.markdown(f"**📱 You:** {msg['message']}")
-            else:
-                st.markdown(f"**🤖 Assistant:** {msg['message']}")
-            st.caption(f"Mobile - {time.strftime('%H:%M', time.localtime(msg['time']))}")
-    else:
-        st.info("Start a demo scenario to see mobile conversation")
-    
-    # Demo Statistics
-    st.subheader("📊 Mobile Demo Stats")
-    stats_data = {
-        'Mobile Metric': ['Gestures Used', 'Messages Sent', 'Mode Changes', 'Voice Commands'],
-        'Count': [
-            len(app.gesture_history),
-            len([m for m in app.chat_history if m['type'] == 'user']),
-            len([g for g in app.gesture_history if g[0] == 'MOUSE']),
-            len([g for g in app.gesture_history if g[0] == 'VOICE'])
+    with main_col:
+        # Mobile container
+        st.markdown('<div class="mobile-container">', unsafe_allow_html=True)
+        
+        # Mobile Phone Display
+        st.subheader("📱 Mobile Phone Demo")
+        
+        # Create and display mobile phone
+        phone_display = app.create_mobile_phone_display(app.active_scenario)
+        st.image(phone_display, use_column_width=False, caption="ASL Mobile Phone Interface")
+        
+        # Active Scenario Display
+        if app.active_scenario:
+            scenario = app.scenarios[app.active_scenario]
+            active_class = "active" if app.active_scenario else ""
+            
+            st.markdown(f'''
+            <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); 
+                        border-radius: 10px; padding: 15px; margin: 10px 0;">
+                <h4>🎯 Active Demo: {scenario['title']}</h4>
+                <p><strong>Description:</strong> {scenario['description']}</p>
+                <p><strong>Current Step:</strong></p>
+                <div class="demo-step">
+                    {scenario['steps'][scenario['current_step']]}
+                </div>
+                <p><strong>Progress:</strong> {scenario['current_step'] + 1}/{len(scenario['steps'])} steps</p>
+            </div>
+            ''', unsafe_allow_html=True)
+        
+        # Real-time Feedback
+        if app.feedback_message:
+            st.markdown(f'<div class="feedback-message">📱 {app.feedback_message}</div>', 
+                       unsafe_allow_html=True)
+        
+        # Demo Interaction Area
+        st.subheader("🔄 Demo Interactions")
+        
+        if app.active_scenario == "asl_typing":
+            st.markdown("**👋 ASL Gesture Typing Demo**")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("A Gesture", use_container_width=True):
+                    app.process_gesture('A')
+            with col2:
+                if st.button("B Gesture", use_container_width=True):
+                    app.process_gesture('B')
+            with col3:
+                if st.button("C Gesture", use_container_width=True):
+                    app.process_gesture('C')
+            with col4:
+                if st.button("␣ Space", use_container_width=True):
+                    app.process_gesture('SPACE')
+                    
+        elif app.active_scenario == "mouse_control":
+            st.markdown("**🖱️ Mouse Control Demo**")
+            mouse_cols = st.columns(4)
+            with mouse_cols[0]:
+                if st.button("⬅️ Left", use_container_width=True):
+                    app.control_mouse("move_left")
+            with mouse_cols[1]:
+                if st.button("➡️ Right", use_container_width=True):
+                    app.control_mouse("move_right")
+            with mouse_cols[2]:
+                if st.button("🖱️ Click", use_container_width=True):
+                    app.control_mouse("click")
+            with mouse_cols[3]:
+                if st.button("🔄 Scroll", use_container_width=True):
+                    app.control_mouse("scroll")
+                    
+        elif app.active_scenario == "voice_commands":
+            st.markdown("**🎤 Voice Control Demo**")
+            voice_cols = st.columns(2)
+            with voice_cols[0]:
+                if st.button("🎤 Activate Voice", use_container_width=True):
+                    app.activate_voice_command()
+            with voice_cols[1]:
+                if st.button("🗣️ Random Command", use_container_width=True):
+                    app.process_gesture('VOICE')
+        else:
+            st.info("👆 Select a demo scenario from the left panel to start!")
+        
+        # Message Composition
+        st.subheader("💬 Mobile Message")
+        st.text_area("Typing Area:", value=app.typed_text, height=80, key="mobile_message")
+        
+        # Virtual Keyboard for Mobile
+        st.subheader("⌨️ Mobile Keyboard")
+        mobile_keys = [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['SPACE', 'DEL', 'ENTER', 'VOICE']
         ]
-    }
-    st.dataframe(pd.DataFrame(stats_data), use_container_width=True)
+        
+        for row in mobile_keys:
+            cols = st.columns(len(row))
+            for i, key in enumerate(row):
+                with cols[i]:
+                    if st.button(key, use_container_width=True):
+                        if key == 'DEL':
+                            app.process_gesture('DELETE')
+                        elif key == 'SPACE':
+                            app.process_gesture('SPACE')
+                        elif key == 'ENTER':
+                            app.send_message()
+                        elif key == 'VOICE':
+                            app.process_gesture('VOICE')
+                        else:
+                            app.process_gesture(key)
+        
+        # Action Buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📤 Send from Mobile", use_container_width=True):
+                app.send_message()
+        with col2:
+            if st.button("🔄 Switch Mobile Mode", use_container_width=True):
+                app.process_gesture('MOUSE')
+        
+        # Quick Mobile Actions
+        st.subheader("⚡ Mobile Quick Actions")
+        quick_cols = st.columns(4)
+        actions = [
+            ("🌐 Mobile Google", "google"),
+            ("📱 Open Camera", "camera"), 
+            ("📞 Call Contact", "call"),
+            ("📍 Get Location", "location")
+        ]
+        
+        for i, (label, command) in enumerate(actions):
+            with quick_cols[i]:
+                if st.button(label, use_container_width=True):
+                    app.typed_text = command
+                    app.send_message()
+        
+        # Conversation History
+        st.subheader("💬 Mobile Conversation")
+        if app.chat_history:
+            for msg in app.chat_history[-4:]:
+                if msg['type'] == 'user':
+                    st.markdown(f"**📱 You:** {msg['message']}")
+                else:
+                    st.markdown(f"**🤖 Assistant:** {msg['message']}")
+                st.caption(f"Mobile - {time.strftime('%H:%M', time.localtime(msg['time']))}")
+        else:
+            st.info("Start a demo scenario to see mobile conversation")
+        
+        # Demo Statistics
+        st.subheader("📊 Mobile Demo Stats")
+        stats_data = {
+            'Mobile Metric': ['Gestures Used', 'Messages Sent', 'Mode Changes', 'Voice Commands'],
+            'Count': [
+                len(app.gesture_history),
+                len([m for m in app.chat_history if m['type'] == 'user']),
+                len([g for g in app.gesture_history if g[0] == 'MOUSE']),
+                len([g for g in app.gesture_history if g[0] == 'VOICE'])
+            ]
+        }
+        st.dataframe(pd.DataFrame(stats_data), use_container_width=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Demo Instructions
     with st.expander("📱 Mobile Demo Guide"):
@@ -586,8 +636,6 @@ def main():
         
         *Perfect for mobile accessibility demonstrations!*
         """)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
