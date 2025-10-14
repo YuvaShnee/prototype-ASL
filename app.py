@@ -1,4 +1,4 @@
-# app.py (Optimized for Streamlit Cloud, no OpenCV required)
+# app.py (Cloud-ready, deprecated params & DataFrame fixed)
 import streamlit as st
 import numpy as np
 from PIL import Image, ImageDraw
@@ -43,14 +43,11 @@ def generate_webcam_placeholder():
     width, height = 400, 300
     img = Image.new('RGB', (width, height), color=(50, 50, 50))
     draw = ImageDraw.Draw(img)
-    # Gradient background
     for y in range(height):
         color = int(100 + (y / height) * 100)
         draw.line([(0, y), (width, y)], fill=(color, color, color))
-    # Text
     draw.text((80, 50), "ASL CAMERA FEED", fill=(255, 255, 255))
     draw.text((60, 100), "Show hand gestures here", fill=(200, 200, 255))
-    # Hand simulation
     cx, cy, r = width//2, height//2, 40
     draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=(0,255,0), width=3)
     draw.ellipse((cx-5, cy-5, cx+5, cy+5), fill=(0,255,0))
@@ -188,7 +185,7 @@ def main():
     with col2:
         st.subheader("👋 Gesture Panel")
         webcam_image = generate_webcam_placeholder()
-        st.image(webcam_image, use_column_width=True, caption="Simulated Camera Feed")
+        st.image(webcam_image, width="stretch", caption="Simulated Camera Feed")
 
         cols = st.columns(2)
         if cols[0].button("🎯 Detect Gesture", use_container_width=True):
@@ -206,29 +203,34 @@ def main():
             st.info(f"💡 {asl_app.feedback_message}")
 
         st.subheader("📊 Recent Gestures")
-        for g, ts in reversed(asl_app.gesture_history[-5:]):
-            st.markdown(f"<div class='gesture-card'>🎯 {g} <small>({time.strftime('%H:%M:%S',time.localtime(ts))})</small></div>", unsafe_allow_html=True)
+        if asl_app.gesture_history:
+            for g,t in reversed(asl_app.gesture_history[-5:]):
+                st.markdown(f"<div class='gesture-card'>🎯 {g} <small>({time.strftime('%H:%M:%S',time.localtime(t))})</small></div>", unsafe_allow_html=True)
+        else:
+            st.write("No gestures yet")
 
-        st.subheader("📈 Chat Stats")
+        # Stats with numeric values only
+        st.subheader("📈 Stats")
         stats = {
-            "Metric":["Messages","Gestures","AI Responses","Session Time"],
+            "Metric":["Messages Sent","Gestures Used","AI Responses","Session Time"],
             "Value":[
-                len([m for m in asl_app.chat_history if m['type']=="user"]),
+                len([m for m in asl_app.chat_history if m['type']=='user']),
                 len(asl_app.gesture_history),
-                len([m for m in asl_app.chat_history if m['type']=="bot"]),
-                f"{int(time.time()-(asl_app.gesture_history[0][1] if asl_app.gesture_history else time.time()))}s"
+                len([m for m in asl_app.chat_history if m['type']=='bot']),
+                int(time.time() - (asl_app.gesture_history[0][1] if asl_app.gesture_history else time.time()))
             ]
         }
-        st.dataframe(pd.DataFrame(stats), use_container_width=True)
+        df = pd.DataFrame(stats)
+        st.dataframe(df, width="stretch")
+        st.write(f"Session Time: {stats['Value'][3]}s")
 
     with st.expander("📖 How to Use"):
         st.markdown("""
-        **Gestures:** A-Z letters, SPACE, DELETE, SEND, CLEAR, HELP, VOICE  
-        **Modes:** Typing & Mouse (switch with MOUSE gesture)  
-        **Chat:** Quick actions or gestures to interact with AI  
-        *Note: Real deployment would use MediaPipe for live hand gestures.*
+        **Gestures:** A-Z, SPACE, DELETE, SEND, CLEAR, HELP, VOICE, MOUSE  
+        **Modes:** Typing / Mouse  
+        **Chat:** Quick actions or gestures  
+        *Note: This is a simulated prototype; real implementation uses MediaPipe.*
         """)
 
 if __name__=="__main__":
     main()
-
