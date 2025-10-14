@@ -1,589 +1,463 @@
-# app.py
 import streamlit as st
+import cv2
 import numpy as np
-import time
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
-import io
-import base64
-import random
+from PIL import Image
+import time
+import plotly.express as px
+from datetime import datetime
 
-# Page configuration for mobile-like interface
+# ------------------------------------------------
+# PAGE CONFIGURATION
+# ------------------------------------------------
 st.set_page_config(
-    page_title="ASL Mobile App",
+    page_title="ASL Mobile Guardian",
     page_icon="📱",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for realistic mobile app
-st.markdown("""
-<style>
-    /* Hide all Streamlit default elements */
+# ------------------------------------------------
+# CUSTOM CSS FOR PROFESSIONAL UI
+# ------------------------------------------------
+def local_css():
+    st.markdown("""
+    <style>
     .main-header {
-        font-size: 0px;
-        color: transparent;
-    }
-    
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Mobile app container */
-    .mobile-app {
-        width: 375px;
-        height: 812px;
-        background: #000;
-        border-radius: 40px;
-        margin: 20px auto;
-        padding: 20px;
-        position: relative;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        border: 10px solid #333;
-        overflow: hidden;
-    }
-    
-    /* Phone screen */
-    .phone-screen {
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        border-radius: 30px;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    /* Status bar */
-    .status-bar {
-        height: 44px;
-        background: rgba(0,0,0,0.9);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 20px;
-        color: white;
-        font-size: 14px;
+        font-size: 3rem;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 2rem;
         font-weight: bold;
     }
-    
-    /* App content */
-    .app-content {
-        height: calc(100% - 44px);
+    .scenario-low {
+        background-color: #d4edda;
+        border: 2px solid #c3e6cb;
+        border-radius: 10px;
         padding: 20px;
-        color: white;
-        overflow-y: auto;
+        margin: 10px 0;
     }
-    
-    /* Demo scenarios panel */
-    .demo-panel {
-        position: fixed;
-        left: 20px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(0,0,0,0.9);
+    .scenario-medium {
+        background-color: #fff3cd;
+        border: 2px solid #ffeaa7;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px 0;
+    }
+    .scenario-high {
+        background-color: #f8d7da;
+        border: 2px solid #f5c6cb;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px 0;
+    }
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #1f77b4;
+    }
+    .demo-scenario {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        transition: all 0.3s ease;
+    }
+    .demo-scenario:hover {
+        border-color: #1f77b4;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .mobile-interface {
+        border: 3px solid #e0e0e0;
         border-radius: 15px;
+        padding: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 10px 0;
+    }
+    .phone-mockup {
+        border: 2px solid #333;
+        border-radius: 25px;
         padding: 20px;
-        width: 280px;
-        color: white;
-        z-index: 1000;
-        border: 2px solid #00ff00;
-        backdrop-filter: blur(10px);
+        background-color: #000;
+        width: 300px;
+        margin: 0 auto;
     }
-    
-    .scenario-btn {
-        width: 100%;
-        padding: 15px;
-        margin: 10px 0;
-        background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-        border: none;
-        border-radius: 12px;
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: center;
-    }
-    
-    .scenario-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,122,255,0.4);
-    }
-    
-    .scenario-btn.active {
-        background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
-        box-shadow: 0 0 20px rgba(0,255,0,0.5);
-    }
-    
-    /* Mobile app elements */
-    .app-section {
-        background: rgba(255,255,255,0.1);
-        border-radius: 16px;
+    .mobile-screen {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        border-radius: 20px;
         padding: 20px;
-        margin: 15px 0;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        min-height: 500px;
     }
-    
-    .camera-view {
-        width: 100%;
-        height: 200px;
-        background: linear-gradient(45deg, #000, #333);
-        border-radius: 12px;
-        margin: 10px 0;
-        position: relative;
-        overflow: hidden;
+    .gesture-feedback {
+        background: rgba(0,255,0,0.1);
         border: 2px solid #00ff00;
-    }
-    
-    .hand-animation {
-        position: absolute;
-        width: 80px;
-        height: 80px;
-        background: rgba(0,255,0,0.3);
-        border-radius: 50%;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        animation: pulse 2s infinite;
-        border: 3px solid #00ff00;
-    }
-    
-    @keyframes pulse {
-        0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
-        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-    }
-    
-    .keyboard {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        gap: 5px;
+        border-radius: 10px;
+        padding: 15px;
         margin: 10px 0;
-    }
-    
-    .key {
-        background: rgba(255,255,255,0.2);
-        border: none;
-        border-radius: 8px;
-        color: white;
-        padding: 12px 5px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        color: #00ff00;
         text-align: center;
-    }
-    
-    .key:hover {
-        background: rgba(0,122,255,0.6);
-        transform: scale(1.05);
-    }
-    
-    .key.special {
-        background: rgba(255,59,48,0.6);
-    }
-    
-    .key.action {
-        background: rgba(52,199,89,0.6);
-    }
-    
-    .message-bubble {
-        max-width: 80%;
-        padding: 12px 16px;
-        margin: 8px 0;
-        border-radius: 18px;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    
-    .message-user {
-        background: #007AFF;
-        margin-left: auto;
-        border-bottom-right-radius: 4px;
-    }
-    
-    .message-bot {
-        background: rgba(255,255,255,0.2);
-        margin-right: auto;
-        border-bottom-left-radius: 4px;
-    }
-    
-    .typing-area {
-        width: 100%;
-        height: 60px;
-        background: rgba(255,255,255,0.1);
-        border: 2px solid rgba(255,255,255,0.3);
-        border-radius: 12px;
-        color: white;
-        padding: 15px;
-        font-size: 16px;
-        margin: 10px 0;
-    }
-    
-    .control-button {
-        width: 100%;
-        padding: 15px;
-        margin: 5px 0;
-        background: rgba(0,122,255,0.8);
-        border: none;
-        border-radius: 12px;
-        color: white;
-        font-size: 16px;
         font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
     }
-    
-    .control-button:hover {
-        background: rgba(0,122,255,1);
-        transform: translateY(-2px);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-class MobileASLApp:
-    def __init__(self):
-        self.typed_text = ""
-        self.current_mode = "typing"
-        self.gesture_history = []
-        self.feedback_message = ""
-        self.chat_history = []
-        self.current_gesture = None
-        self.mouse_position = [50, 50]
-        self.voice_command_active = False
-        self.active_scenario = None
-        self.animation_frame = 0
-        
-        # Demo scenarios
-        self.scenarios = {
-            "asl_typing": {
-                "title": "👆 ASL Typing",
-                "description": "Type with hand gestures",
-                "icon": "👆",
-                "color": "#007AFF"
-            },
-            "mouse_control": {
-                "title": "🖐️ Mouse Control", 
-                "description": "Navigate with gestures",
-                "icon": "🖐️",
-                "color": "#FF2D55"
-            },
-            "voice_commands": {
-                "title": "🎤 Voice Control",
-                "description": "Hands-free commands", 
-                "icon": "🎤",
-                "color": "#34C759"
-            }
-        }
-
-    def create_camera_animation(self):
-        """Create animated camera view with hand detection"""
-        # Create a realistic camera view
-        img = Image.new('RGB', (300, 200), color='#000000')
-        draw = ImageDraw.Draw(img)
-        
-        # Camera frame
-        draw.rectangle([10, 10, 290, 190], outline='#00ff00', width=2)
-        
-        # Animated hand circle
-        pulse_size = 5 * abs(np.sin(self.animation_frame * 0.5))
-        center_x, center_y = 150, 100
-        
-        # Hand detection area
-        draw.ellipse([
-            center_x-40-pulse_size, center_y-40-pulse_size,
-            center_x+40+pulse_size, center_y+40+pulse_size
-        ], outline='#00ff00', width=3)
-        
-        # Hand dots (fingers)
-        for i, angle in enumerate([0, 72, 144, 216, 288]):
-            rad = np.radians(angle + self.animation_frame * 10)
-            dot_x = center_x + int(30 * np.cos(rad))
-            dot_y = center_y + int(30 * np.sin(rad))
-            draw.ellipse([dot_x-4, dot_y-4, dot_x+4, dot_y+4], fill='#00ff00')
-        
-        # Status text
-        draw.text((150, 30), "📱 Mobile Camera Active", fill='#00ff00', anchor='mm')
-        draw.text((150, 170), "Hand Detected ✓", fill='#00ff00', anchor='mm')
-        
-        self.animation_frame += 1
-        return img
-
-    def create_phone_interface(self):
-        """Create the main phone interface"""
-        # This will be handled by HTML/CSS in Streamlit components
-        pass
-
-    def process_gesture(self, gesture):
-        """Process detected gesture"""
-        if gesture in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 
-                      'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 
-                      'W', 'X', 'Y', 'Z']:
-            self.typed_text += gesture
-            self.feedback_message = f"📱 Gesture '{gesture}' detected"
-            
-        elif gesture == 'SPACE':
-            self.typed_text += ' '
-            self.feedback_message = "␣ Space added"
-            
-        elif gesture == 'DELETE':
-            self.typed_text = self.typed_text[:-1] if self.typed_text else ""
-            self.feedback_message = "🗑️ Character deleted"
-            
-        elif gesture == 'ENTER':
-            self.send_message()
-            
-        elif gesture == 'MOUSE':
-            self.current_mode = 'mouse' if self.current_mode == 'typing' else 'typing'
-            self.feedback_message = f"🔄 {self.current_mode.upper()} mode"
-            
-        self.current_gesture = gesture
-        self.gesture_history.append((gesture, time.time()))
-
-    def control_mouse(self, action):
-        """Control mouse movement"""
-        if action == "left":
-            self.mouse_position[0] = max(0, self.mouse_position[0] - 10)
-            self.feedback_message = "🖐️ Cursor moved left"
-        elif action == "right":
-            self.mouse_position[0] = min(100, self.mouse_position[0] + 10)
-            self.feedback_message = "🖐️ Cursor moved right"
-        elif action == "click":
-            self.feedback_message = "👇 Mouse clicked"
-        elif action == "scroll":
-            self.feedback_message = "🔄 Page scrolled"
-
-    def activate_voice(self):
-        """Activate voice command"""
-        commands = [
-            "Hello mobile assistant",
-            "Open camera application", 
-            "Send message to contact",
-            "What's the weather today?",
-            "Set alarm for morning"
-        ]
-        self.typed_text = random.choice(commands)
-        self.feedback_message = "🎤 Voice command activated"
-
-    def send_message(self):
-        """Send message in chat"""
-        if self.typed_text.strip():
-            self.chat_history.append({
-                'type': 'user',
-                'message': self.typed_text,
-                'time': time.time()
-            })
-            
-            # AI response
-            responses = {
-                "hello": "👋 Hello! I'm your mobile ASL assistant",
-                "camera": "📷 Opening camera for gesture detection",
-                "weather": "🌤️ Beautiful day for mobile gestures!",
-                "default": "📱 Command received via mobile interface"
-            }
-            
-            response = responses.get(self.typed_text.lower(), responses["default"])
-            
-            self.chat_history.append({
-                'type': 'bot',
-                'message': response,
-                'time': time.time()
-            })
-            
-            self.feedback_message = "📤 Message sent"
-            self.typed_text = ""
-
-    def start_scenario(self, scenario_name):
-        """Start a demo scenario"""
-        self.active_scenario = scenario_name
-        self.feedback_message = f"🚀 Starting {self.scenarios[scenario_name]['title']}"
-
-def main():
-    # Initialize app
-    if 'mobile_app' not in st.session_state:
-        st.session_state.mobile_app = MobileASLApp()
-    
-    app = st.session_state.mobile_app
-    
-    # Demo Scenarios Panel (Left Side)
-    st.markdown("""
-    <div class="demo-panel">
-        <h3 style="text-align: center; margin-bottom: 20px; color: #00ff00;">🎯 Demo Scenarios</h3>
-    </div>
+    </style>
     """, unsafe_allow_html=True)
-    
-    # Create scenario buttons
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        if st.button("👆\nASL Typing", use_container_width=True, key="btn_asl"):
-            app.start_scenario("asl_typing")
-    with col2:
-        if st.button("🖐️\nMouse Control", use_container_width=True, key="btn_mouse"):
-            app.start_scenario("mouse_control")
-    with col3:
-        if st.button("🎤\nVoice Control", use_container_width=True, key="btn_voice"):
-            app.start_scenario("voice_commands")
-    
-    # Mobile App Interface
-    st.markdown("""
-    <div class="mobile-app">
-        <div class="phone-screen">
-            <div class="status-bar">
-                <span>9:41</span>
-                <span>📶 100% 🔋</span>
-            </div>
-            <div class="app-content">
-    """, unsafe_allow_html=True)
-    
-    # App Title
-    st.markdown("<h2 style='text-align: center; color: white; margin: 20px 0;'>ASL Mobile</h2>", unsafe_allow_html=True)
-    
-    # Camera View
-    st.markdown("<div class='camera-view'>", unsafe_allow_html=True)
-    camera_img = app.create_camera_animation()
-    st.image(camera_img, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Feedback Message
-    if app.feedback_message:
-        st.markdown(f"""
-        <div style='background: rgba(0,255,0,0.2); padding: 10px; border-radius: 10px; 
-                    border: 1px solid #00ff00; margin: 10px 0; text-align: center; color: #00ff00;'>
-            🔥 {app.feedback_message}
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Typing Area
-    st.markdown("<div class='app-section'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: white;'>💬 Your Message</h4>", unsafe_allow_html=True)
-    
-    # Text display
-    st.markdown(f"""
-    <div class='typing-area'>
-        {app.typed_text or "Type with gestures..."}
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Virtual Keyboard
-    st.markdown("<h4 style='color: white; margin-top: 20px;'>⌨️ Quick Type</h4>", unsafe_allow_html=True)
-    
-    # Keyboard rows
-    keyboard_rows = [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-        ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
-        ['SPACE', 'ENTER', 'VOICE', 'MOUSE']
-    ]
-    
-    for row in keyboard_rows:
-        cols = st.columns(len(row))
-        for i, key in enumerate(row):
-            with cols[i]:
-                if st.button(key, use_container_width=True, key=f"key_{key}_{i}"):
-                    if key == 'DEL':
-                        app.process_gesture('DELETE')
-                    elif key == 'SPACE':
-                        app.process_gesture('SPACE')
-                    elif key == 'ENTER':
-                        app.send_message()
-                    elif key == 'VOICE':
-                        app.activate_voice()
-                    elif key == 'MOUSE':
-                        app.process_gesture('MOUSE')
-                    else:
-                        app.process_gesture(key)
-    
-    st.markdown("</div>", unsafe_allow_html=True)  # End app-section
-    
-    # Mouse Control Section
-    if app.current_mode == "mouse":
-        st.markdown("<div class='app-section'>", unsafe_allow_html=True)
-        st.markdown("<h4 style='color: white;'>🖐️ Mouse Control</h4>", unsafe_allow_html=True)
-        
-        mouse_cols = st.columns(4)
-        with mouse_cols[0]:
-            if st.button("⬅️", use_container_width=True, key="mouse_left"):
-                app.control_mouse("left")
-        with mouse_cols[1]:
-            if st.button("➡️", use_container_width=True, key="mouse_right"):
-                app.control_mouse("right")
-        with mouse_cols[2]:
-            if st.button("👆", use_container_width=True, key="mouse_click"):
-                app.control_mouse("click")
-        with mouse_cols[3]:
-            if st.button("🔄", use_container_width=True, key="mouse_scroll"):
-                app.control_mouse("scroll")
-        
-        # Mouse position indicator
-        st.markdown(f"""
-        <div style='background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; margin: 10px 0;'>
-            <div style='color: white; text-align: center;'>
-                Cursor Position: ({app.mouse_position[0]}, {app.mouse_position[1]})
-            </div>
-            <div style='width: 100%; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin: 10px 0;'>
-                <div style='width: {app.mouse_position[0]}%; height: 100%; background: #007AFF; border-radius: 10px;'></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Chat History
-    st.markdown("<div class='app-section'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: white;'>📱 Conversation</h4>", unsafe_allow_html=True)
-    
-    if app.chat_history:
-        for msg in app.chat_history[-3:]:
-            bubble_class = "message-user" if msg['type'] == 'user' else "message-bot"
-            st.markdown(f"""
-            <div class='message-bubble {bubble_class}'>
-                {msg['message']}
-                <div style='font-size: 10px; opacity: 0.7; text-align: right;'>
-                    {time.strftime('%H:%M', time.localtime(msg['time']))}
+
+local_css()
+
+# ------------------------------------------------
+# MOBILE INTERFACE DISPLAY FUNCTIONS
+# ------------------------------------------------
+def display_mobile_interface(scenario_type):
+    """Display the appropriate mobile interface based on scenario"""
+    if scenario_type == "typing":
+        st.markdown("""
+        <div class="mobile-screen">
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: white;">📱 ASL Mobile App</h3>
+                <div style="background: rgba(0,255,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h4 style="color: #00ff00;">👆 Gesture Typing Active</h4>
+                    <p>Camera detecting hand gestures...</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                    <p style="color: white; font-size: 18px;">HELLO WORLD</p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0;">
+                    <button style="padding: 15px; background: #007AFF; border: none; border-radius: 10px; color: white;">A</button>
+                    <button style="padding: 15px; background: #007AFF; border: none; border-radius: 10px; color: white;">B</button>
+                    <button style="padding: 15px; background: #007AFF; border: none; border-radius: 10px; color: white;">C</button>
+                    <button style="padding: 15px; background: #FF2D55; border: none; border-radius: 10px; color: white;">DEL</button>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style='text-align: center; color: rgba(255,255,255,0.5); padding: 20px;'>
-            Start typing with gestures to begin conversation...
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Gesture History
-    st.markdown("<div class='app-section'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: white;'>📊 Recent Gestures</h4>", unsafe_allow_html=True)
-    
-    if app.gesture_history:
-        for gesture, timestamp in app.gesture_history[-5:]:
-            st.markdown(f"""
-            <div style='background: rgba(0,255,0,0.1); padding: 8px 12px; margin: 5px 0; 
-                        border-radius: 8px; border-left: 3px solid #00ff00; color: white;'>
-                🎯 {gesture} - {time.strftime('%H:%M:%S', time.localtime(timestamp))}
-            </div>
-            """, unsafe_allow_html=True)
-    else:
+    elif scenario_type == "mouse":
         st.markdown("""
-        <div style='text-align: center; color: rgba(255,255,255,0.5); padding: 10px;'>
-            No gestures yet...
+        <div class="mobile-screen">
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: white;">📱 ASL Mobile App</h3>
+                <div style="background: rgba(255,59,48,0.2); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h4 style="color: #FF3B30;">🖐️ Mouse Control Active</h4>
+                    <p>Hand gestures controlling cursor...</p>
+                </div>
+                <div style="position: relative; height: 200px; background: rgba(255,255,255,0.1); border-radius: 10px; margin: 20px 0;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; background: #00ff00; border-radius: 50%; transform: translate(-50%, -50%);"></div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0;">
+                    <button style="padding: 15px; background: #5856D6; border: none; border-radius: 10px; color: white;">⬅️</button>
+                    <button style="padding: 15px; background: #5856D6; border: none; border-radius: 10px; color: white;">➡️</button>
+                    <button style="padding: 15px; background: #34C759; border: none; border-radius: 10px; color: white;">👆</button>
+                    <button style="padding: 15px; background: #FF9500; border: none; border-radius: 10px; color: white;">🔄</button>
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Close mobile app HTML
-    st.markdown("""
+    else:  # voice scenario
+        st.markdown("""
+        <div class="mobile-screen">
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: white;">📱 ASL Mobile App</h3>
+                <div style="background: rgba(52,199,89,0.2); padding: 20px; border-radius: 15px; margin: 20px 0;">
+                    <h4 style="color: #34C759;">🎤 Voice Control Active</h4>
+                    <p>Listening for voice commands...</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 50%; width: 100px; height: 100px; margin: 30px auto; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 40px;">🎤</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
+                    <p style="color: white; font-style: italic;">"Hello, open Google search"</p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0;">
+                    <button style="padding: 15px; background: #34C759; border: none; border-radius: 10px; color: white;">🎤 Speak</button>
+                    <button style="padding: 15px; background: #007AFF; border: none; border-radius: 10px; color: white;">📝 Type</button>
+                </div>
             </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Auto-refresh for animations
-    time.sleep(0.1)
-    st.rerun()
+        """, unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
+def display_sms_alert():
+    """Display the SMS alert for critical scenarios"""
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown('<div class="phone-mockup">', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background: white; color: black; padding: 15px; border-radius: 10px; font-family: Arial;">
+            <div style="background: #007AFF; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                <strong>ASL Mobile Alert</strong>
+            </div>
+            <p><strong>Voice Command Executed:</strong></p>
+            <p>"Emergency: Call doctor immediately"</p>
+            <p style="font-size: 12px; color: gray;">Sent to Medical Staff</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ------------------------------------------------
+# SIDEBAR
+# ------------------------------------------------
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/000000/iphone.png", width=80)
+    st.title("Control Panel")
+
+    selected_tab = st.radio("Navigation",
+                            ["Live Demo", "Usage Dashboard", "System Analytics", "About"])
+
+    st.markdown("---")
+    st.markdown("### Demo Scenarios")
+    scenario = st.selectbox("Choose Scenario",
+                            ["ASL Typing with Mobile App",
+                             "Mouse Control with Mobile App", 
+                             "Voice Control with Mobile App"])
+
+    st.markdown("---")
+    st.markdown("### System Status")
+    st.success("🟢 All Systems Operational")
+    st.info("📡 Connected to Mobile Network")
+    st.metric("Active Users", "156", "12")
+
+# ------------------------------------------------
+# AI ANALYSIS MOCK FUNCTION FOR ASL APP
+# ------------------------------------------------
+def analyze_asl_scenario(scenario):
+    if scenario == "ASL Typing with Mobile App":
+        return {
+            "scenario_level": "BASIC",
+            "accuracy_score": 94,
+            "speed_wpm": 25,
+            "confidence": 92,
+            "features": {"gesture_recognition": 95, "camera_stability": 90,
+                         "typing_accuracy": 96, "response_time": 88},
+            "recommendation": "Excellent gesture recognition. Continue using ASL typing for communication.",
+            "alert_status": "NORMAL",
+            "interface_type": "typing",
+            "user_image": "https://raw.githubusercontent.com/YuvaShnee/Agentic-AI-predictive-maintain/main/normal_baby.png"
+        }
+    elif scenario == "Mouse Control with Mobile App":
+        return {
+            "scenario_level": "INTERMEDIATE", 
+            "accuracy_score": 78,
+            "speed_wpm": 18,
+            "confidence": 85,
+            "features": {"cursor_control": 82, "click_accuracy": 75,
+                         "scroll_precision": 80, "gesture_stability": 70},
+            "recommendation": "Good mouse control. Practice improves precision. Consider calibration.",
+            "alert_status": "WARNING",
+            "interface_type": "mouse",
+            "user_image": "https://raw.githubusercontent.com/YuvaShnee/Agentic-AI-predictive-maintain/main/medium_risk_baby.png"
+        }
+    else:  # Voice Control
+        return {
+            "scenario_level": "ADVANCED",
+            "accuracy_score": 65,
+            "speed_wpm": 32,
+            "confidence": 88,
+            "features": {"speech_recognition": 85, "command_accuracy": 70,
+                         "noise_reduction": 75, "response_latency": 60},
+            "recommendation": "Voice control active. Background noise detected. Improve microphone positioning.",
+            "alert_status": "CRITICAL",
+            "interface_type": "voice",
+            "user_image": "https://raw.githubusercontent.com/YuvaShnee/Agentic-AI-predictive-maintain/main/high5.png"
+        }
+
+# ------------------------------------------------
+# GENERATE MOCK PERFORMANCE DATA
+# ------------------------------------------------
+def generate_performance_data():
+    timestamps = pd.date_range(start='2024-01-01 08:00', periods=24, freq='H')
+    accuracy = np.random.normal(85, 8, 24)
+    return pd.DataFrame({'timestamp': timestamps, 'accuracy': accuracy})
+
+# ------------------------------------------------
+# MAIN TABS
+# ------------------------------------------------
+if selected_tab == "Live Demo":
+    st.markdown('<h1 class="main-header">📱 ASL Mobile Guardian</h1>', unsafe_allow_html=True)
+    st.markdown("### AI-Powered Accessibility Interface System")
+
+    st.markdown("## 🎥 Live Mobile Demo")
+    with st.spinner('🔄 AI Analysis in Progress...'):
+        progress_bar = st.progress(0)
+        for i in range(100):
+            time.sleep(0.02)
+            progress_bar.progress(i + 1)
+        analysis_result = analyze_asl_scenario(scenario)
+
+    col1, col2 = st.columns([2, 1])
+
+    # Left Column: Mobile Interface + User View
+    with col1:
+        st.markdown('<div class="mobile-interface">', unsafe_allow_html=True)
+        st.markdown("### 📱 Mobile App Interface")
+        display_mobile_interface(analysis_result["interface_type"])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("### 👤 User Interaction View")
+        st.image(analysis_result["user_image"], caption="User Interaction Analysis", width=600)
+
+    # Right Column: Performance Metrics
+    with col2:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown("### 📈 Real-time Performance Metrics")
+        performance_data = generate_performance_data()
+        fig_perf = px.line(performance_data, x='timestamp', y='accuracy', 
+                          title='Gesture Recognition Accuracy Trend')
+        fig_perf.add_hline(y=90, line_dash="dash", line_color="green", annotation_text="Excellent")
+        fig_perf.add_hline(y=70, line_dash="dash", line_color="orange", annotation_text="Good")
+        fig_perf.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="Needs Improvement")
+        st.plotly_chart(fig_perf, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("#### Current Performance Parameters")
+        col_met1, col_met2 = st.columns(2)
+        with col_met1:
+            st.metric("Accuracy Score", f"{analysis_result['accuracy_score']}%", "2%")
+            st.metric("Speed", f"{analysis_result['speed_wpm']} WPM", "3 WPM")
+        with col_met2:
+            st.metric("AI Confidence", f"{analysis_result['confidence']}%", "1%")
+            st.metric("Response Time", "120ms", "5ms")
+
+    # Scenario Summary
+    st.markdown("### 🎯 AI Performance Assessment")
+    scenario_level = analysis_result["scenario_level"]
+    if scenario_level == "BASIC":
+        st.markdown('<div class="scenario-low">', unsafe_allow_html=True)
+        st.success("🟢 **BASIC SCENARIO - EXCELLENT PERFORMANCE**")
+    elif scenario_level == "INTERMEDIATE":
+        st.markdown('<div class="scenario-medium">', unsafe_allow_html=True)
+        st.warning("🟡 **INTERMEDIATE SCENARIO - GOOD PERFORMANCE**")
+    else:
+        st.markdown('<div class="scenario-high">', unsafe_allow_html=True)
+        st.error("🔴 **ADVANCED SCENARIO - NEEDS ATTENTION**")
+
+    st.write(f"**Typing Speed:** {analysis_result['speed_wpm']} Words Per Minute")
+    st.write(f"**AI Confidence Score:** {analysis_result['confidence']}%")
+    st.write(f"**System Recommendation:** {analysis_result['recommendation']}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Real-time Feedback Messages
+    st.markdown("### 💬 Real-time Feedback Messages")
+    if analysis_result["interface_type"] == "typing":
+        st.markdown("""
+        <div class="gesture-feedback">
+            ✅ Gesture 'H' detected and typed | 📱 Mobile camera tracking active | 
+            ⏱️ Response time: 120ms | 🎯 Accuracy: 96%
+        </div>
+        """, unsafe_allow_html=True)
+    elif analysis_result["interface_type"] == "mouse":
+        st.markdown("""
+        <div class="gesture-feedback">
+            🖐️ Hand gesture moved cursor RIGHT | 👆 Tap gesture detected - CLICK performed |
+            🔄 Scroll gesture recognized | 📱 Mobile sensors active
+        </div>
+        """, unsafe_allow_html=True)
+    else:  # voice
+        st.markdown("""
+        <div class="gesture-feedback">
+            🎤 Voice command: "Open Google search" | 🔊 Audio processing complete |
+            📱 Command executed successfully | ⚡ Response: 850ms
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Detailed Features
+    st.markdown("### 🔬 Detailed AI Feature Analysis")
+    features = analysis_result["features"]
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    with col_f1: 
+        st.metric("Gesture Recognition", f"{features['gesture_recognition']}%")
+    with col_f2: 
+        st.metric("Command Accuracy", f"{features.get('command_accuracy', features.get('click_accuracy', 0))}%")
+    with col_f3: 
+        st.metric("System Stability", f"{features.get('camera_stability', features.get('gesture_stability', features.get('noise_reduction', 0)))}%")
+    with col_f4: 
+        st.metric("Response Quality", f"{features['response_time']}%")
+
+    # Alerts and Notifications
+    if analysis_result["alert_status"] == "CRITICAL":
+        st.error("🚨 **ATTENTION REQUIRED: Voice Control Optimization Needed**")
+        st.markdown("### 📱 System Notification Sent")
+        display_sms_alert()
+        st.warning("🔄 **Optimization Protocols Activated:**")
+        st.write("- 🎤 Microphone calibration initiated")
+        st.write("- 🔊 Noise reduction algorithms enhanced")
+        st.write("- 📱 Audio processing optimized")
+        st.write("- 🔧 System tuning in progress")
+        st.balloons()
+    elif analysis_result["alert_status"] == "WARNING":
+        st.warning("⚠️ **PERFORMANCE NOTICE**: Mouse control precision can be improved")
+        st.info("📋 **Recommended Actions:** Practice sessions & calibration check")
+
+# -----------------------------
+# Usage Dashboard Tab
+# -----------------------------
+elif selected_tab == "Usage Dashboard":
+    st.markdown('<h1 class="main-header">📱 Usage Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown("### Overview of ASL Mobile App Usage")
+    
+    usage_data = pd.DataFrame({
+        "User ID": ["USER001", "USER002", "USER003", "USER004"],
+        "Primary Mode": ["Gesture Typing", "Mouse Control", "Voice Control", "Gesture Typing"],
+        "Accuracy (%)": [94, 78, 65, 89],
+        "Session Duration": ["45 min", "32 min", "28 min", "51 min"],
+        "Last Active": ["08:15", "09:30", "07:45", "08:50"]
+    })
+    st.table(usage_data)
+
+# -----------------------------
+# System Analytics Tab
+# -----------------------------
+elif selected_tab == "System Analytics":
+    st.markdown('<h1 class="main-header">📊 System Analytics</h1>', unsafe_allow_html=True)
+    st.markdown("### Aggregated Usage Patterns")
+    
+    # Create sample analytics data
+    analytics_data = pd.DataFrame({
+        "Gesture Typing": [65, 68, 72, 70, 75],
+        "Mouse Control": [25, 22, 20, 23, 18],
+        "Voice Control": [10, 10, 8, 7, 7]
+    }, index=['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
+    
+    st.bar_chart(analytics_data)
+    
+    st.markdown("### Feature Usage Distribution")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Sessions", "1,234", "12%")
+        st.metric("Average Accuracy", "82%", "3%")
+    with col2:
+        st.metric("Active Users", "156", "8%")
+        st.metric("Response Time", "145ms", "-5ms")
+
+# -----------------------------
+# About Tab
+# -----------------------------
+elif selected_tab == "About":
+    st.markdown('<h1 class="main-header">ℹ️ About ASL Mobile Guardian</h1>', unsafe_allow_html=True)
+    st.markdown("""
+    **ASL Mobile Guardian** is an AI-powered accessibility interface system.
+    - Enables communication through ASL gestures, mouse control, and voice commands
+    - Developed for enhanced mobile accessibility
+    - Provides Live Demo, Usage Dashboard, and System Analytics
+    - Supports multiple interaction modes for diverse user needs
+    """)
+    
+    st.markdown("### 🎯 Supported Scenarios")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info("**👆 ASL Typing**\n\nGesture-based text input using mobile camera")
+    with col2:
+        st.warning("**🖐️ Mouse Control**\n\nHand gesture-based cursor control")
+    with col3:
+        st.success("**🎤 Voice Control**\n\nVoice command interface for hands-free operation")
+
+# ------------------------------------------------
+# FOOTER
+# ------------------------------------------------
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: gray;'>"
+    "ASL Mobile Guardian 📱 - Enhancing Mobile Accessibility | Tech4Good 2024 | Accessibility AI Solutions"
+    "</div>",
+    unsafe_allow_html=True
+)
+   
