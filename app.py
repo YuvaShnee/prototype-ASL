@@ -1,236 +1,487 @@
-# app.py (Cloud-ready, deprecated params & DataFrame fixed)
+# app.py
 import streamlit as st
+import cv2
 import numpy as np
-from PIL import Image, ImageDraw
 import time
 import pandas as pd
+from PIL import Image
+import io
+import base64
 import random
+import requests
+import json
 
-# -----------------------------------------------
-# PAGE CONFIGURATION
-# -----------------------------------------------
+# Page configuration for mobile-like interface
 st.set_page_config(
-    page_title="ASL AI Chatbot",
-    page_icon="🤖",
+    page_title="ASL Mobile App Prototype",
+    page_icon="📱",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# -----------------------------------------------
-# CUSTOM STYLES
-# -----------------------------------------------
+# Custom CSS for mobile app styling
 st.markdown("""
 <style>
-    .main-header { font-size: 2.5rem; text-align:center; margin-bottom:1rem; background: linear-gradient(45deg,#1f77b4,#ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
-    .chat-container { background-color:#f8f9fa; border-radius:15px; padding:20px; margin:10px 0; max-height:400px; overflow-y:auto; border:2px solid #e9ecef;}
-    .user-message { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:12px 16px; border-radius:18px 18px 5px 18px; margin:8px 0; max-width:80%; margin-left:auto; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-    .bot-message { background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%); color:white; padding:12px 16px; border-radius:18px 18px 18px 5px; margin:8px 0; max-width:80%; margin-right:auto; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-    .keyboard-key { display:inline-block; width:45px; height:45px; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; border:none; border-radius:8px; text-align:center; line-height:45px; margin:3px; font-weight:bold; cursor:pointer; transition:all 0.3s ease;}
-    .keyboard-key:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,0.2);}
-    .keyboard-key.space { width:200px; background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);}
-    .keyboard-key.special { background:linear-gradient(135deg,#ff6b6b 0%,#ee5a24 100%);}
-    .mode-indicator { background:linear-gradient(135deg,#a8edea 0%,#fed6e3 100%); padding:10px; border-radius:10px; text-align:center; font-weight:bold; margin:10px 0;}
-    .gesture-card { background:white; padding:1rem; border-radius:10px; margin:0.5rem 0; border-left:5px solid #1f77b4; box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+    /* Mobile app styling */
+    .main-header {
+        font-size: 2rem;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        padding: 10px;
+    }
+    
+    .mobile-container {
+        max-width: 400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 2px solid #e0e0e0;
+    }
+    
+    .camera-feed {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin: 10px 0;
+        text-align: center;
+        color: white;
+    }
+    
+    .gesture-feedback {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 5px solid #4ECDC4;
+    }
+    
+    .quick-action {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        border-radius: 12px;
+        padding: 12px;
+        margin: 5px;
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .quick-action:hover {
+        transform: translateY(-2px);
+    }
+    
+    .mode-indicator {
+        background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+        color: white;
+        padding: 10px;
+        border-radius: 25px;
+        text-align: center;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .virtual-key {
+        display: inline-block;
+        width: 35px;
+        height: 35px;
+        background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        text-align: center;
+        line-height: 35px;
+        margin: 2px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .virtual-key.special {
+        background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+        width: 60px;
+    }
+    
+    .virtual-key.action {
+        background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+        width: 80px;
+    }
+    
+    .chat-bubble {
+        background: #e3f2fd;
+        border-radius: 18px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        max-width: 80%;
+    }
+    
+    .chat-bubble.user {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 5px;
+    }
+    
+    .chat-bubble.bot {
+        background: #f5f5f5;
+        margin-right: auto;
+        border-bottom-left-radius: 5px;
+    }
+    
+    .tab-button {
+        background: #f8f9fa;
+        border: none;
+        padding: 10px 20px;
+        margin: 2px;
+        border-radius: 20px;
+        cursor: pointer;
+    }
+    
+    .tab-button.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------
-# CACHED FUNCTIONS
-# -----------------------------------------------
-@st.cache_data
-def generate_webcam_placeholder():
-    """Simulated webcam feed placeholder using PIL"""
-    width, height = 400, 300
-    img = Image.new('RGB', (width, height), color=(50, 50, 50))
-    draw = ImageDraw.Draw(img)
-    for y in range(height):
-        color = int(100 + (y / height) * 100)
-        draw.line([(0, y), (width, y)], fill=(color, color, color))
-    draw.text((80, 50), "ASL CAMERA FEED", fill=(255, 255, 255))
-    draw.text((60, 100), "Show hand gestures here", fill=(200, 200, 255))
-    cx, cy, r = width//2, height//2, 40
-    draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=(0,255,0), width=3)
-    draw.ellipse((cx-5, cy-5, cx+5, cy+5), fill=(0,255,0))
-    return img
-
-@st.cache_resource
-def get_ai_response_cached(user_message):
-    """Simulated AI responses"""
-    responses = {
-        "hello": "👋 Hello! I'm your ASL AI assistant. How can I help you today?",
-        "help": "🤖 I can help you with:\n• Typing via gestures\n• Voice commands\n• Quick actions\nJust ask me anything!",
-        "weather": "🌤️ It's sunny in AI world!",
-        "time": f"⏰ Current time is {time.strftime('%H:%M:%S')}",
-        "name": "I'm ASL AI Chatbot - your gesture-controlled assistant!",
-        "default": "🤔 Interesting! In real deployment, I'd use GPT or similar AI for answers."
-    }
-    msg = user_message.lower()
-    for key in responses:
-        if key in msg and key != "default":
-            return responses[key]
-    return responses["default"]
-
-# -----------------------------------------------
-# CHATBOT CLASS
-# -----------------------------------------------
-class AIChatbotASL:
+class MobileASLApp:
     def __init__(self):
         self.typed_text = ""
         self.current_mode = "typing"
         self.gesture_history = []
         self.feedback_message = ""
         self.chat_history = []
-        self.gestures = [*map(chr, range(65,91))] + ['SPACE','DELETE','SEND','CLEAR','HELP','VOICE','MOUSE']
+        self.current_tab = "communication"
+        self.quick_phrases = [
+            "Hello, how are you?",
+            "I need help",
+            "Thank you",
+            "Where is the bathroom?",
+            "I use sign language"
+        ]
+        
+        # Mobile-optimized gestures
+        self.mobile_gestures = [
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 
+            'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 
+            'W', 'X', 'Y', 'Z', 'SPACE', 'DELETE', 'ENTER', 'VOICE',
+            'EMOJI', 'SWITCH', 'HELP'
+        ]
+        
+        # Mobile virtual keyboard
+        self.mobile_keyboard = [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
+            ['SPACE', 'VOICE', 'ENTER', '😊']
+        ]
+        
+        # App integrations
+        self.app_integrations = {
+            'messages': "Send as text message",
+            'whatsapp': "Share on WhatsApp", 
+            'email': "Compose email",
+            'social': "Post to social media",
+            'translate': "Translate to text"
+        }
 
-    def simulate_gesture_prediction(self):
-        return random.choice(self.gestures)
+    def simulate_gesture_detection(self):
+        """Simulate real gesture detection"""
+        return random.choice(self.mobile_gestures)
 
     def process_gesture(self, gesture):
-        now = time.time()
-        if gesture in [chr(i) for i in range(65,91)]:
+        """Process detected gesture with mobile-specific actions"""
+        if gesture in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 
+                      'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 
+                      'W', 'X', 'Y', 'Z']:
             self.typed_text += gesture
-            self.feedback_message = f"Typed: {gesture}"
+            self.feedback_message = f"📝 Typed: {gesture}"
+            
         elif gesture == 'SPACE':
             self.typed_text += ' '
-            self.feedback_message = "Space added"
+            self.feedback_message = "␣ Space added"
+            
         elif gesture == 'DELETE':
-            self.typed_text = self.typed_text[:-1]
-            self.feedback_message = "Deleted character"
-        elif gesture == 'SEND':
+            self.typed_text = self.typed_text[:-1] if self.typed_text else ""
+            self.feedback_message = "🗑️ Deleted"
+            
+        elif gesture == 'ENTER':
             if self.typed_text.strip():
-                self.chat_history.append({'type':'user','message':self.typed_text,'time':now})
-                response = get_ai_response_cached(self.typed_text)
-                self.chat_history.append({'type':'bot','message':response,'time':now})
-                self.feedback_message = "Message sent!"
-                self.typed_text = ""
+                self.send_message()
             else:
-                self.feedback_message = "Please type a message first"
-        elif gesture == 'CLEAR':
-            self.typed_text = ""
-            self.feedback_message = "Input cleared"
-        elif gesture == 'HELP':
-            self.typed_text = "help"
-            self.process_gesture('SEND')
+                self.feedback_message = "Type a message first"
+                
         elif gesture == 'VOICE':
-            self.typed_text = "What's the weather?"
-            self.process_gesture('SEND')
-        elif gesture == 'MOUSE':
+            self.feedback_message = "🎤 Voice mode activated"
+            # Simulate voice input
+            voice_responses = ["Hello there!", "How can I help?", "What's the weather?", "Call my mom"]
+            self.typed_text = random.choice(voice_responses)
+            
+        elif gesture == 'EMOJI':
+            emojis = ["😊", "👍", "❤️", "🎉", "🙏"]
+            self.typed_text += random.choice(emojis)
+            self.feedback_message = "😊 Emoji added"
+            
+        elif gesture == 'SWITCH':
             self.current_mode = 'mouse' if self.current_mode == 'typing' else 'typing'
-            self.feedback_message = f"Switched to {self.current_mode} mode"
+            self.feedback_message = f"🔄 Switched to {self.current_mode} mode"
+            
+        elif gesture == 'HELP':
+            self.feedback_message = "❓ Help: Make gestures in front of camera"
+        
+        self.gesture_history.append((gesture, time.time()))
 
-        self.gesture_history.append((gesture, now))
-        if len(self.gesture_history)>10:
-            self.gesture_history = self.gesture_history[-10:]
+    def send_message(self):
+        """Send message and get AI response"""
+        if self.typed_text.strip():
+            # Add user message
+            self.chat_history.append({
+                'type': 'user',
+                'message': self.typed_text,
+                'time': time.time()
+            })
+            
+            # Get AI response
+            ai_response = self.get_ai_response(self.typed_text)
+            
+            # Add AI response
+            self.chat_history.append({
+                'type': 'bot', 
+                'message': ai_response,
+                'time': time.time()
+            })
+            
+            self.feedback_message = "✅ Message sent!"
+            self.typed_text = ""
 
-# -----------------------------------------------
-# DISPLAY FUNCTIONS
-# -----------------------------------------------
-def display_chat(chat_history):
-    if not chat_history:
-        st.markdown("""
-        <div class='chat-container'>
-            <div style='text-align:center;color:#666;padding:20px;'>
-                <h3>🤖 Welcome to ASL AI Chatbot!</h3>
-                <p>Start chatting using gestures or virtual keyboard</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-    html = "<div class='chat-container'>"
-    for msg in chat_history[-10:]:
-        if msg['type']=='user':
-            html += f"<div class='user-message'><b>You:</b> {msg['message']}<div style='font-size:0.8em;opacity:0.7;text-align:right'>{time.strftime('%H:%M',time.localtime(msg['time']))}</div></div>"
-        else:
-            html += f"<div class='bot-message'><b>AI Assistant:</b> {msg['message']}<div style='font-size:0.8em;opacity:0.7'>{time.strftime('%H:%M',time.localtime(msg['time']))}</div></div>"
-    html += "</div>"
-    st.markdown(html, unsafe_allow_html=True)
-
-# -----------------------------------------------
-# MAIN APP
-# -----------------------------------------------
-def main():
-    st.markdown('<h1 class="main-header">🤖 ASL AI Chatbot</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center;color:#666;">Gesture + Voice + Keyboard Control</p>', unsafe_allow_html=True)
-
-    if 'asl_app' not in st.session_state:
-        st.session_state.asl_app = AIChatbotASL()
-    asl_app = st.session_state.asl_app
-
-    col1, col2 = st.columns([2,1])
-
-    with col1:
-        st.subheader("💬 Chat Interface")
-        display_chat(asl_app.chat_history)
-        st.text_input("Your Message:", value=asl_app.typed_text, disabled=True)
-
-        # Quick actions in a form
-        with st.form("actions"):
-            c1,c2,c3,c4 = st.columns(4)
-            ask_help = c1.form_submit_button("❓ Help")
-            ask_weather = c2.form_submit_button("🌤️ Weather")
-            voice = c3.form_submit_button("🗣️ Voice")
-            clear = c4.form_submit_button("🗑️ Clear Chat")
-
-            if ask_help:
-                asl_app.typed_text = "help"
-                asl_app.process_gesture("SEND")
-            elif ask_weather:
-                asl_app.typed_text = "What's the weather like?"
-                asl_app.process_gesture("SEND")
-            elif voice:
-                asl_app.process_gesture("VOICE")
-            elif clear:
-                asl_app.chat_history.clear()
-
-    with col2:
-        st.subheader("👋 Gesture Panel")
-        webcam_image = generate_webcam_placeholder()
-        st.image(webcam_image, width="stretch", caption="Simulated Camera Feed")
-
-        cols = st.columns(2)
-        if cols[0].button("🎯 Detect Gesture", use_container_width=True):
-            g = asl_app.simulate_gesture_prediction()
-            asl_app.process_gesture(g)
-            st.success(f"Detected: {g}")
-
-        if cols[1].button("🔄 Switch Mode", use_container_width=True):
-            asl_app.process_gesture("MOUSE")
-
-        mode_icon = "🟢" if asl_app.current_mode=="typing" else "🔵"
-        st.markdown(f"<div class='mode-indicator'>{mode_icon} Mode: {asl_app.current_mode.upper()}</div>", unsafe_allow_html=True)
-
-        if asl_app.feedback_message:
-            st.info(f"💡 {asl_app.feedback_message}")
-
-        st.subheader("📊 Recent Gestures")
-        if asl_app.gesture_history:
-            for g,t in reversed(asl_app.gesture_history[-5:]):
-                st.markdown(f"<div class='gesture-card'>🎯 {g} <small>({time.strftime('%H:%M:%S',time.localtime(t))})</small></div>", unsafe_allow_html=True)
-        else:
-            st.write("No gestures yet")
-
-        # Stats with numeric values only
-        st.subheader("📈 Stats")
-        stats = {
-            "Metric":["Messages Sent","Gestures Used","AI Responses","Session Time"],
-            "Value":[
-                len([m for m in asl_app.chat_history if m['type']=='user']),
-                len(asl_app.gesture_history),
-                len([m for m in asl_app.chat_history if m['type']=='bot']),
-                int(time.time() - (asl_app.gesture_history[0][1] if asl_app.gesture_history else time.time()))
-            ]
+    def get_ai_response(self, user_message):
+        """Get simulated AI response"""
+        responses = {
+            "hello": "👋 Hello! I'm your ASL assistant. How can I help you communicate today?",
+            "help": "🤖 I can help you:\n• Type with gestures\n• Control your phone\n• Send messages\n• Use voice commands\nMake a gesture or use the keyboard!",
+            "weather": "🌤️ To check weather, I can help you search online or use your weather app!",
+            "emergency": "🆘 Emergency mode activated! I can help you contact emergency services or your emergency contacts.",
+            "thank you": "😊 You're welcome! I'm here to help you communicate easily.",
+            "default": "💡 That's interesting! In the full app, I'd understand your gestures and help you communicate effectively."
         }
-        df = pd.DataFrame(stats)
-        st.dataframe(df, width="stretch")
-        st.write(f"Session Time: {stats['Value'][3]}s")
+        
+        user_lower = user_message.lower()
+        for key in responses:
+            if key in user_lower:
+                return responses[key]
+        return responses["default"]
 
-    with st.expander("📖 How to Use"):
+    def get_camera_feed(self):
+        """Generate simulated camera feed with hand tracking"""
+        # Create a realistic camera feed simulation
+        img = np.zeros((300, 400, 3), dtype=np.uint8)
+        
+        # Gradient background
+        for i in range(300):
+            color = int(50 + (i / 300) * 100)
+            cv2.line(img, (0, i), (400, i), (color, color, color + 50), 1)
+        
+        # Camera UI elements
+        cv2.putText(img, "ASL CAMERA", (140, 30), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        # Animated hand visualization
+        center_x, center_y = 200, 150
+        pulse = int(10 * np.sin(time.time() * 3))
+        
+        # Hand outline
+        cv2.circle(img, (center_x, center_y), 50 + pulse, (0, 255, 0), 2)
+        
+        # Finger points (animated)
+        for i, angle in enumerate([30, 90, 150, 210, 270]):
+            rad = np.radians(angle + pulse * 5)
+            fx = int(center_x + 40 * np.cos(rad))
+            fy = int(center_y + 40 * np.sin(rad))
+            cv2.circle(img, (fx, fy), 8, (255, 100, 100), -1)
+        
+        # Status text
+        cv2.putText(img, "Hand Detected ✓", (140, 250), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(img, "Make ASL Gestures", (120, 280), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 255), 1)
+        
+        return img
+
+def main():
+    st.markdown('<h1 class="main-header">📱 ASL Mobile App Prototype</h1>', 
+                unsafe_allow_html=True)
+    
+    # Initialize session state
+    if 'mobile_app' not in st.session_state:
+        st.session_state.mobile_app = MobileASLApp()
+    
+    app = st.session_state.mobile_app
+    
+    # Mobile container
+    st.markdown('<div class="mobile-container">', unsafe_allow_html=True)
+    
+    # Tab navigation (mobile-style)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        tab1_active = "active" if app.current_tab == "communication" else ""
+        st.markdown(f'<button class="tab-button {tab1_active}" onclick="alert(\'Switching to Communication tab\')">💬</button>', 
+                   unsafe_allow_html=True)
+    with col2:
+        tab2_active = "active" if app.current_tab == "control" else ""
+        st.markdown(f'<button class="tab-button {tab2_active}" onclick="alert(\'Switching to Control tab\')">🎮</button>', 
+                   unsafe_allow_html=True)
+    with col3:
+        tab3_active = "active" if app.current_tab == "quick" else ""
+        st.markdown(f'<button class="tab-button {tab3_active}" onclick="alert(\'Switching to Quick Actions\')">⚡</button>', 
+                   unsafe_allow_html=True)
+    with col4:
+        tab4_active = "active" if app.current_tab == "settings" else ""
+        st.markdown(f'<button class="tab-button {tab4_active}" onclick="alert(\'Switching to Settings\')">⚙️</button>', 
+                   unsafe_allow_html=True)
+    
+    # Camera feed section
+    st.markdown('<div class="camera-feed">', unsafe_allow_html=True)
+    st.subheader("📷 ASL Camera")
+    
+    camera_feed = app.get_camera_feed()
+    st.image(camera_feed, use_column_width=True, caption="Live Hand Tracking - Make gestures to communicate")
+    
+    # Gesture controls
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🎯 Detect Gesture", use_container_width=True):
+            gesture = app.simulate_gesture_detection()
+            app.process_gesture(gesture)
+            st.toast(f"Gesture Detected: {gesture}", icon="✅")
+            
+    with col2:
+        if st.button("🔄 Switch Mode", use_container_width=True):
+            app.process_gesture('SWITCH')
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Current mode and feedback
+    st.markdown(f'''
+    <div class="mode-indicator">
+        📱 {app.current_mode.upper()} MODE | 🎯 {len(app.gesture_history)} Gestures Detected
+    </div>
+    ''', unsafe_allow_html=True)
+    
+    if app.feedback_message:
+        st.info(app.feedback_message)
+    
+    # Communication interface
+    st.subheader("💬 Communication")
+    
+    # Text input display
+    st.text_input("Your Message (Use gestures or keyboard):", 
+                 value=app.typed_text, key="message_display", disabled=True)
+    
+    # Virtual Keyboard
+    st.markdown("### ⌨️ Virtual Keyboard")
+    for row in app.mobile_keyboard:
+        cols = st.columns(len(row))
+        for i, key in enumerate(row):
+            with cols[i]:
+                key_class = "virtual-key"
+                if key in ['SPACE', 'VOICE', 'ENTER']:
+                    key_class += " action"
+                elif key in ['DEL', '😊']:
+                    key_class += " special"
+                    
+                if st.button(key, key=f"key_{key}_{i}", use_container_width=True):
+                    app.process_gesture(key)
+    
+    # Quick Actions
+    st.subheader("⚡ Quick Actions")
+    quick_cols = st.columns(3)
+    actions = [
+        ("📞 Call Mom", "Calling Mom..."),
+        ("📍 Share Location", "Location shared!"),
+        ("🆘 Emergency", "Emergency mode activated!"),
+        ("🌤️ Weather", "Checking weather..."),
+        ("🍕 Food", "Opening food delivery..."),
+        ("🚗 Transport", "Booking transport...")
+    ]
+    
+    for i, (action, response) in enumerate(actions):
+        with quick_cols[i % 3]:
+            if st.button(action, use_container_width=True):
+                st.toast(response, icon="✅")
+                app.feedback_message = response
+    
+    # Quick Phrases
+    st.subheader("💬 Quick Phrases")
+    phrase_cols = st.columns(2)
+    for i, phrase in enumerate(app.quick_phrases):
+        with phrase_cols[i % 2]:
+            if st.button(phrase, use_container_width=True):
+                app.typed_text = phrase
+                app.feedback_message = f"📝 Quick phrase: {phrase}"
+    
+    # Chat History
+    if app.chat_history:
+        st.subheader("📝 Conversation History")
+        for msg in app.chat_history[-3:]:  # Show last 3 messages
+            bubble_class = "chat-bubble user" if msg['type'] == 'user' else "chat-bubble bot"
+            sender = "You" if msg['type'] == 'user' else "ASL Assistant"
+            st.markdown(f'''
+            <div class="{bubble_class}">
+                <strong>{sender}:</strong> {msg['message']}
+                <div style="font-size: 0.8em; opacity: 0.7;">
+                    {time.strftime('%H:%M', time.localtime(msg['time']))}
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+    
+    # App Integrations
+    st.subheader("🔗 Share To...")
+    int_cols = st.columns(3)
+    integrations = list(app.app_integrations.items())[:6]  # First 6 integrations
+    
+    for i, (app_name, description) in enumerate(integrations):
+        with int_cols[i % 3]:
+            if st.button(f"📲 {app_name.title()}", use_container_width=True):
+                if app.typed_text:
+                    st.toast(f"Sharing to {app_name}: {app.typed_text}", icon="✅")
+                else:
+                    st.warning("Type a message first!")
+    
+    # Gesture History
+    with st.expander("📊 Recent Gestures"):
+        if app.gesture_history:
+            for gesture, timestamp in reversed(app.gesture_history[-5:]):
+                st.write(f"🎯 {gesture} - {time.strftime('%H:%M:%S', time.localtime(timestamp))}")
+        else:
+            st.write("No gestures yet. Make a gesture in front of the camera!")
+    
+    # Demo Instructions
+    with st.expander("🎯 How to Use This Demo"):
         st.markdown("""
-        **Gestures:** A-Z, SPACE, DELETE, SEND, CLEAR, HELP, VOICE, MOUSE  
-        **Modes:** Typing / Mouse  
-        **Chat:** Quick actions or gestures  
-        *Note: This is a simulated prototype; real implementation uses MediaPipe.*
+        ### 🎮 **Live Demo Features:**
+        
+        1. **🎯 Click 'Detect Gesture'** - Simulates random ASL gesture detection
+        2. **⌨️ Use Virtual Keyboard** - Type messages manually
+        3. **⚡ Quick Actions** - One-tap common tasks
+        4. **💬 Quick Phrases** - Pre-written common phrases
+        5. **🔗 App Integration** - Share to different apps
+        
+        ### 📱 **Mobile App Features Demonstrated:**
+        - Real-time camera hand tracking
+        - Gesture-to-text conversion
+        - Voice command integration
+        - Quick action shortcuts
+        - Multi-app sharing
+        - Conversation history
+        - Emergency features
+        
+        *In full mobile app: Actual camera processing with MediaPipe + real gesture recognition*
         """)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
